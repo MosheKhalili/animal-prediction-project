@@ -1,0 +1,161 @@
+Mileston 2:
+##Create bucket in AWS
+$ aws s3api create-bucket --bucket animal-prediction-project --region us-east-2 --create-bucket-configuration LocationConstraint=us-east-2
+
+##To import data from Kaggle
+$ pip3 install Kaggle
+$ mkdir .kaggle                   
+$ nano .kaggle/kaggle.json
+$ chmod 600 .kaggle/kaggle.json
+$ nano  ~/.local/lib/python3.7/site-packages/kaggle/api/kaggle_api_extended.py
+$ kaggle datasets download --quiet -d ANTOREEPJANA/Animals-Detection-Images-  Dataset -p -  | aws s3 cp - s3://animal-prediction-project/animalpicture.zip
+
+##To check what is in AWS S3 Bucket
+import boto3
+s3 = boto3.resource('s3')
+for bucket in s3.buckets.all():
+print(bucket.name)
+
+##Check what is in dataset
+aws s3 ls s3://animal-prediction-project
+
+Mileston 3:
+##To unzip the file:
+import zipfile
+import boto3
+from io import BytesIO
+bucket=" animal-prediction-project " # Put your bucket name here
+zipfile_to_unzip=”animalpicture.zip"
+s3_client = boto3.client('s3', use_ssl=False)
+s3_resource = boto3.resource('s3')
+zip_obj = s3_resource.Object(bucket_name=bucket, key=zipfile_to_unzip)
+buffer = BytesIO(zip_obj.get()["Body"].read())
+z = zipfile.ZipFile(buffer) 
+for filename in z.namelist():
+print('Working on ' + filename)
+s3_resource.meta.client.upload_fileobj(z.open(filename), Bucket=bucket, Key=f'{filename}')
+
+aws s3 cp s3://animal-prediction-project/test/Bear/0df78ee76bafd3a9.jpg .
+
+##Summary Staistics:
+
+from PIL import Image
+im = Image.open('./0df78ee76bafd3a9.jpg')
+width, height = im.size
+
+
+##To find the number of files and directories in dataset:
+import os
+APP_FOLDER = r"C:\Users\mkmos\Downloads\archive"
+totalFiles = 0
+totalDir = 0
+for base, dirs, files in os.walk(APP_FOLDER):
+    print('Searching in : ',base)
+    for directories in dirs:
+        totalDir += 1
+    for Files in files:
+        totalFiles += 1
+
+print('Total number of files',totalFiles)
+print('Total Number of directories',totalDir)
+print('Total:',(totalDir + totalFiles))
+
+
+Milestone 4:
+
+##Coding and Modeling:
+
+
+all_train_subdir=glob.glob(dir_path+"/*")
+all_test_subdir=glob.glob(dir_pathtest+"/*")
+
+
+train_classes=[os.path.basename(pp) for pp in all_train_subdir]
+test_classes=[os.path.basename(pp) for pp in all_test_subdir]
+
+print("There is %d classes in train dataset, and %d classes in test dataset"%(len(train_classes), len(test_classes)))
+
+train_image_counts={os.path.basename(pp):[len(glob.glob(os.path.join(pp, "*.jpg")))] for pp in all_train_subdir}
+test_image_counts={os.path.basename(pp):[len(glob.glob(os.path.join(pp, "*.jpg")))] for pp in all_test_subdir}
+# all_image_counts=train_image_counts.copy()
+# all_image_counts={k:all_image_counts[k]+test_image_counts[k] for k in all_image_counts.keys()}
+train_data_df = pd.DataFrame(train_image_counts, index=["train"]).transpose()
+test_data_df = pd.DataFrame(test_image_counts, index=["test"]).transpose()
+all_data_df=train_data_df.copy()
+all_data_df["test"]=test_data_df
+all_data_df.head()
+
+
+print(train_data_df)
+print(all_test_subdir)
+
+##AWS Rekognition:
+
+$ aws rekognition detect-labels --image "S3Object={Bucket=animal-prediction-project,Name=test/Bear/0df78ee76bafd3a9.jpg}
+$ aws rekognition detect-labels --image "S3Object={Bucket=animal-prediction-project,Name=test/Hamster/1f118f1359caddc0.jpg}"
+
+
+##Milestone 5:
+
+##Visualizations:
+
+train_image_counts={os.path.basename(pp):[len(glob.glob(os.path.join(pp, "*.jpg")))] for pp in all_train_subdir}
+test_image_counts={os.path.basename(pp):[len(glob.glob(os.path.join(pp, "*.jpg")))] for pp in all_test_subdir}
+all_image_counts.keys()}
+train_data_df = pd.DataFrame(train_image_counts, index=["train"]).transpose()
+test_data_df = pd.DataFrame(test_image_counts, index=["test"]).transpose()
+
+all_data_df.sort_values(by=["train","test"], ascending=False)
+all_data_df.plot(kind="bar", legend=True, figsize=(20,5), title="Image Counts in Each Class");
+
+
+def draw_image(image_file, label_file, class_names):
+    class_name = os.path.basename(os.path.dirname(image_file))    
+    image = cv2.imread(image_file)
+        
+    with open(label_file) as fobj:
+        while True:            
+            item = fobj.readline()
+            if item is None or len(item)<=0:
+                break
+                
+            item = item[len(class_name):]
+            item = item.split()
+            xmin = float(item[0])
+            ymin = float(item[1])
+            xmax = float(item[2])
+            ymax = float(item[3])
+        
+            image = cv2.rectangle(image, (int(xmin), int(ymin)), (int(xmax), int(ymax)), (0,0,255), 3)
+            image = cv2.putText(image, class_name, (int(xmin), int(ymin-5)), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (0, 0, 255), 3)
+        
+    return image
+
+subdir = all_train_subdir[9]
+image_files = glob.glob(os.path.join(subdir, "*.jpg"))
+
+image_file = image_files[21]
+label_file = os.path.join(subdir, "Label", os.path.basename(image_file).replace(".jpg", ".txt"))
+
+image = draw_image(image_file, label_file, train_classes)
+image = image[:,:,2::-1]
+plt.imshow(image);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
